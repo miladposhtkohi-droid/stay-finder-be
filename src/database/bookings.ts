@@ -1,7 +1,5 @@
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 
-import { sb } from "../lib/supabase.js";
-
 import type { Booking, NewBooking, BookingValidKey } from "../types/booking.js";
 import type { BasicSupabaseClient } from "../types/supabase.js";
 
@@ -10,6 +8,7 @@ const TABLE_NAME = "bookings";
 const SELECT_QUERY_LIST: BookingValidKey[] = [
   "booking_id",
   "property_id",
+  "user_id",
   "guest_name",
   "guest_email",
   "check_in",
@@ -23,7 +22,12 @@ const SELECT_QUERY = SELECT_QUERY_LIST.join(", ");
 const QUERY_ID = "booking_id";
 const QUERY_PROPERTY_ID = "property_id";
 
+/**
+ * Krav G12 & G15: Hämta alla bokningar för ett boende.
+ * Använder den inloggade användarens Supabase-klient (sb) så att databasens RLS-regler gäller.
+ */
 export async function getBookingsByPropertyId(
+  sb: BasicSupabaseClient,
   propertyId: string,
 ): Promise<Booking[]> {
   const { error, data } = await sb
@@ -38,11 +42,13 @@ export async function getBookingsByPropertyId(
   throw error;
 }
 
+/**
+ * Krav G9 & G15: Skapa en ny bokning i databasen.
+ */
 export async function createBooking(
   sb: BasicSupabaseClient,
   bookingBody: NewBooking,
 ): Promise<Booking> {
-  console.log(bookingBody)
   const { error, data }: PostgrestSingleResponse<Booking> = await sb
     .from(TABLE_NAME)
     .insert(bookingBody)
@@ -55,7 +61,12 @@ export async function createBooking(
   throw error;
 }
 
+/**
+ * Krav G12 & G15: Uppdatera en befintlig bokning som tillhör boendet.
+ * .single() kastar ett fel om bokningen inte finns eller om RLS nekar ändringen.
+ */
 export async function updateBooking(
+  sb: BasicSupabaseClient,
   propertyId: string,
   bookingId: string,
   booking: Partial<Booking>,
@@ -74,7 +85,14 @@ export async function updateBooking(
   throw error;
 }
 
-export async function deleteBooking(propertyId: string, bookingId: string) {
+/**
+ * Krav G12 & G15: Ta bort en bokning som tillhör boendet.
+ */
+export async function deleteBooking(
+  sb: BasicSupabaseClient,
+  propertyId: string,
+  bookingId: string,
+): Promise<void> {
   const { error }: PostgrestSingleResponse<Booking> = await sb
     .from(TABLE_NAME)
     .delete()

@@ -1,0 +1,241 @@
+# ============================================================================
+# STAYFINDER - TESTANROP MOT API:T (G-NIVÅ)
+# Krav under "Inlämning":
+# "Filen med testanrop ska visa att reglerna fungerar, både när anrop lyckas
+# och när felaktiga anrop nekas."
+#
+# Hur du kör filen:
+# Du kan köra dessa anrop direkt i VS Code med tillägget "REST Client"
+# eller kopiera in dem i Postman / Thunder Client.
+# ============================================================================
+
+@baseUrl = http://localhost:3000
+@propertyId = 15acb9d4-5302-4c01-9f71-95df850808f7
+@bookingId = BYT_UT_MOT_RIKTIGT_BOOKING_ID
+
+# ============================================================================
+# 1. KONTO & INLOGGNING (Krav G1, G2, G14)
+# ============================================================================
+
+### 1.1 [NEKAS - 400 Bad Request] Skapa konto med ogiltig e-post och för kort lösenord
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "inte-en-epost",
+  "password": "123"
+}
+
+### 1.2 [LYCKAS - 201 Created] Skapa ett nytt konto (G1, G14)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "password123"
+}
+
+### 1.3 [NEKAS - 400 Bad Request] Logga in med fel lösenord (G1, G14)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "fel_losenord"
+}
+
+### 1.4 [LYCKAS - 200 OK] Logga in med rätt uppgifter (Sätter HttpOnly-cookie) (G1, G14)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "testuser@example.com",
+  "password": "password123"
+}
+
+### 1.5 [LYCKAS - 200 OK] Hämta inloggad användare med cookie (G2)
+GET {{baseUrl}}/auth/me
+
+
+# ============================================================================
+# 2. BOENDEN - LISTA, FILTRERA & SORTERA (Krav G4, G5, G8, G14)
+# ============================================================================
+
+### 2.1 [LYCKAS - 200 OK] Hämta alla boenden (fungerar även utloggad, G4)
+GET {{baseUrl}}/properties
+
+### 2.2 [LYCKAS - 200 OK] Filtrera boenden på plats, maxpris och antal gäster (G5)
+GET {{baseUrl}}/properties?location=Stockholm&maxprice=2500&maxguests=4
+
+### 2.3 [LYCKAS - 200 OK] Sortera boenden på pris stigande (G8)
+GET {{baseUrl}}/properties?sort=asc
+
+### 2.4 [LYCKAS - 200 OK] Sortera boenden på pris fallande (G8)
+GET {{baseUrl}}/properties?sort=desc
+
+### 2.5 [NEKAS - 400 Bad Request] Filtrera på ogiltig boendetyp (endast apartment/villa tillåts)
+GET {{baseUrl}}/properties/kind/slott
+
+### 2.6 [NEKAS - 404 Not Found] Hämta ett boende som inte finns (G4, G14)
+GET {{baseUrl}}/properties/00000000-0000-0000-0000-000000000000
+
+
+# ============================================================================
+# 3. BOENDEN - SKAPA, ÄNDRA & TA BORT (Krav G6, G7, G14)
+# ============================================================================
+
+### 3.1 [NEKAS - 400 Bad Request] Skapa boende med ogiltig data (pris under 100, 0 gäster) (G14)
+POST {{baseUrl}}/properties
+Content-Type: application/json
+
+{
+  "title": "A",
+  "description": "Kort",
+  "location": "S",
+  "price_per_night": 50,
+  "max_guests": 0,
+  "kind": "villa"
+}
+
+### 3.2 [LYCKAS - 201 Created] Skapa nytt boende som inloggad användare (G6, G7, G14)
+POST {{baseUrl}}/properties
+Content-Type: application/json
+
+{
+  "title": "Mysig skärgårdsvilla",
+  "description": "Fin villa nära vattnet med bastu och stor altan.",
+  "location": "Stockholm",
+  "price_per_night": 1800,
+  "max_guests": 6,
+  "kind": "villa"
+}
+
+### 3.3 [LYCKAS - 200 OK] Uppdatera ett boende som inloggad (G6)
+PATCH {{baseUrl}}/properties/{{propertyId}}
+Content-Type: application/json
+
+{
+  "price_per_night": 1950
+}
+
+### 3.4 [NEKAS - 404 Not Found] Uppdatera ett boende som inte finns (G14)
+PATCH {{baseUrl}}/properties/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "price_per_night": 1950
+}
+
+
+# ============================================================================
+# 4. BOKNINGAR (Krav G9, G10, G12, G14)
+# ============================================================================
+
+### 4.1 [NEKAS - 400 Bad Request] Boka med ogiltig e-post och 0 gäster (G10, G14)
+POST {{baseUrl}}/bookings/properties/{{propertyId}}
+Content-Type: application/json
+
+{
+  "guest_name": "Milad",
+  "guest_email": "felaktig-epost",
+  "check_in": "2026-12-10",
+  "check_out": "2026-12-15",
+  "guests": 0,
+  "status": "pending"
+}
+
+### 4.2 [NEKAS - 400 Bad Request] Boka med incheckning efter utcheckning (G10, G14)
+POST {{baseUrl}}/bookings/properties/{{propertyId}}
+Content-Type: application/json
+
+{
+  "guest_name": "Milad",
+  "guest_email": "milad@example.com",
+  "check_in": "2026-12-20",
+  "check_out": "2026-12-15",
+  "guests": 2,
+  "status": "pending"
+}
+
+### 4.3 [NEKAS - 404 Not Found] Boka ett boende som inte finns (G14)
+POST {{baseUrl}}/bookings/properties/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "guest_name": "Milad",
+  "guest_email": "milad@example.com",
+  "check_in": "2026-12-10",
+  "check_out": "2026-12-15",
+  "guests": 2,
+  "status": "pending"
+}
+
+### 4.4 [LYCKAS - 201 Created] Skapa en giltig bokning som inloggad (G9, G14)
+POST {{baseUrl}}/bookings/properties/{{propertyId}}
+Content-Type: application/json
+
+{
+  "guest_name": "Milad",
+  "guest_email": "milad@example.com",
+  "check_in": "2026-12-10",
+  "check_out": "2026-12-15",
+  "guests": 2,
+  "status": "pending"
+}
+
+### 4.5 [LYCKAS - 200 OK] Se alla bokningar för ett boende som inloggad (G12)
+GET {{baseUrl}}/bookings/properties/{{propertyId}}
+
+### 4.6 [LYCKAS - 200 OK] Ändra en bokning som inloggad (G12)
+PATCH {{baseUrl}}/bookings/properties/{{propertyId}}/{{bookingId}}
+Content-Type: application/json
+
+{
+  "guests": 3,
+  "status": "confirmed"
+}
+
+### 4.7 [LYCKAS - 200 OK] Ta bort en bokning som inloggad (G12)
+DELETE {{baseUrl}}/bookings/properties/{{propertyId}}/{{bookingId}}
+
+
+# ============================================================================
+# 5. UTLOGGNING & KONTROLL AV 401 UNAUTHORIZED (Krav G1, G6, G12, G14)
+# ============================================================================
+
+### 5.1 [LYCKAS - 200 OK] Logga ut (rensar auth-cookie) (G1)
+POST {{baseUrl}}/auth/logout
+
+### 5.2 [NEKAS - 401 Unauthorized] Kontrollera /auth/me när utloggad (G14)
+GET {{baseUrl}}/auth/me
+
+### 5.3 [NEKAS - 401 Unauthorized] Försök skapa boende som utloggad (G6, G14)
+POST {{baseUrl}}/properties
+Content-Type: application/json
+
+{
+  "title": "Testboende",
+  "description": "Beskrivning här",
+  "location": "Göteborg",
+  "price_per_night": 1200,
+  "max_guests": 2,
+  "kind": "apartment"
+}
+
+### 5.4 [NEKAS - 401 Unauthorized] Försök ta bort boende som utloggad (G6, G14)
+DELETE {{baseUrl}}/properties/{{propertyId}}
+
+### 5.5 [NEKAS - 401 Unauthorized] Försök boka boende som utloggad (G9, G14)
+POST {{baseUrl}}/bookings/properties/{{propertyId}}
+Content-Type: application/json
+
+{
+  "guest_name": "Milad",
+  "guest_email": "milad@example.com",
+  "check_in": "2026-12-10",
+  "check_out": "2026-12-15",
+  "guests": 2,
+  "status": "pending"
+}
+

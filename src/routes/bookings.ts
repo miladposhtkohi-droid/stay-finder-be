@@ -12,73 +12,103 @@ import {
   updateBooking,
 } from "../database/bookings.js";
 import { requireAuth } from "../middleware/auth.js";
+import type { Booking } from "../types/booking.js";
 
+// PostgreSQL felkod för Foreign Key Violation (om property_id inte finns i tabellen properties)
 const FOREIGN_KEY_VIOLATION = "23503";
 
 const bookings = new Hono({ strict: false });
 
-// Lista alla bookings för en Property
-bookings.get("/properties/:propertyId", async (c) => {
-  const propertyId = c.req.param("propertyId");
+/**
+ * GET /bookings/properties/:propertyId
+ * Krav G12 & G14: En inloggad användare kan se bokningar för ett boende.
+ * Skyddad med requireAuth (returnerar 401 om användaren inte är inloggad).
+ */
+bookings.get("/properties/:propertyId", requireAuth, async (c) => {
+  const propertyId = c.req.param("propertyId") as string;
+  const sb = c.get("supabase");
   try {
-    const bookings = await getBookingsByPropertyId(propertyId);
-    return c.json(bookings);
+    const bookings = await getBookingsByPropertyId(sb, propertyId);
+    return c.json(bookings, 200);
   } catch (e) {
     console.warn("Error in fetching bookings from SB database", e);
-    return c.json([]);
+    return c.json([], 200);
   }
 });
 
-// Skapa en Booking för en Property, property_id tas från URL:en
-bookings.post("/properties/:propertyId", bookingValidator, requireAuth, async (c) => {
-  const propertyId = c.req.param("propertyId");
-  const bookingBody = c.req.valid("json");
-  const sb = c.get("supabase")
-  const user = c.get("user") as User
-  try {
-    const booking = await createBooking(sb, {
-      ...bookingBody,
-      property_id: propertyId,
-      user_id: user.id
-    });
-    return c.json(booking, 201);
-  } catch (e) {
-    console.warn("Error in inserting booking into SB DB", e);
-    if ((e as PostgrestError).code === FOREIGN_KEY_VIOLATION) {
-      return c.json(null, 404);
-    }
-    return c.json(e, 500);
-  }
-});
-
-// Uppdatera en Booking om den finns och tillhör Propertyn
-bookings.patch(
-  "/properties/:propertyId/:bookingId",
-  bookingOptionalValidator,
+/**
+ * POST /bookings/properties/:propertyId
+ * Krav G9, G10 & G14: En inloggad användare kan boka ett boende.
+ * 1. requireAuth kollar att användaren är inloggad (401 om utloggad).
+ * 2. bookingValidator kollar att e-post, antal gäster och datum är giltiga (400 om ogiltig data).
+ * 3. Om boendet inte finns returneras 404 Not Found, vid lyckad bokning returneras 201 Created.
+ */
+bookings.post(
+  "/properties/:propertyId",
+  requireAuth,
+  bookingValidator,
   async (c) => {
-    const propertyId = c.req.param("propertyId");
-    const bookingId = c.req.param("bookingId");
+    const propertyId = c.req.param("propertyId") as string;
     const bookingBody = c.req.valid("json");
+    const sb = c.get("supabase");
+    const user = c.get("user") as User;
     try {
-      const booking = await updateBooking(propertyId, bookingId, bookingBody);
-      return c.json(booking);
+      const booking = await createBooking(sb, {
+        ...bookingBody,
+        property_id: propertyId,
+        user_id: user.id,
+      });
+      return c.json(booking, 201);
     } catch (e) {
-      console.warn("Error updating booking in SB DB", e);
-      return c.json(null, 404);
+      console.warn("Error in inserting booking into SB DB", e);
+      if ((e as PostgrestError).code === FOREIGN_KEY_VIOLATION) {
+        return c.json({ message: "Property not found" }, 404);
+      }
+      return c.json({ message: "Could not create booking", error: e }, 500);
     }
   },
 );
 
-// Ta bort en Booking om den finns och tillhör Propertyn
-bookings.delete("/properties/:propertyId/:bookingId", async (c) => {
-  const propertyId = c.req.param("propertyId");
-  const bookingId = c.req.param("bookingId");
+/**
+ * PATCH /bookings/properties/:propertyId/:bookingId
+ * Krav G12 & G14: En inloggad användare kan ändra en bokning för ett boende.
+ * Tar bort user_id och property_id från body så att bokningens ägare/boende inte kan manipuleras.
+ */
+bookings.patch(
+  "/properties/:propertyId/:bookingId",
+  requireAuth,
+  bookingOptionalValidator,
+  async (c) => {
+    const propertyId = c.req.param("propertyId") as string;
+    const bookingId = c.req.param("bookingId") as string;
+    const bookingBody: Partial<Booking> = c.req.valid("json");
+    delete bookingBody.user_id;
+    delete bookingBody.property_id;
+    const sb = c.get("supabase");
+    try {
+      const booking = await updateBooking(sb, propertyId, bookingId, bookingBody);
+      return c.json(booking, 200);
+    } catch (e) {
+      console.warn("Error updating booking in SB DB", e);
+      return c.json({ message: "Booking not found or could not be updated" }, 404);
+    }
+  },
+);
+
+/**
+ * DELETE /bookings/properties/:propertyId/:bookingId
+ * Krav G12 & G14: En inloggad användare kan ta bort en bokning för ett boende.
+ */
+bookings.delete("/properties/:propertyId/:bookingId", requireAuth, async (c) => {
+  const propertyId = c.req.param("propertyId") as string;
+  const bookingId = c.req.param("bookingId") as string;
+  const sb = c.get("supabase");
   try {
-    await deleteBooking(propertyId, bookingId);
-    return c.json(null, 200);
+    await deleteBooking(sb, propertyId, bookingId);
+    return c.json({ message: "Booking deleted" }, 200);
   } catch (e) {
     console.warn("Error in deleting booking", e);
-    return c.json(null, 404);
+    return c.json({ message: "Booking not found or could not be deleted" }, 404);
   }
 });
 

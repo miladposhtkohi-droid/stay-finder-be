@@ -11,6 +11,12 @@ import { env } from './env.js'
 
 const app = new Hono({ strict: false })
 
+/**
+ * CORS-inställningar:
+ * - origin: Tillåter anrop från vår Next.js-frontend (http://localhost:3001).
+ * - credentials: true: Krävs för att webbläsaren ska få skicka och ta emot
+ *   våra HttpOnly-inloggningscookies mellan port 3001 och port 3000 (Krav G1 & G2).
+ */
 app.use('*', cors({
   origin: env.frontendUrl,
   allowHeaders: ['Authorization', 'Content-Type'],
@@ -19,18 +25,22 @@ app.use('*', cors({
 
 app.use(prettyJSON())
 
+/**
+ * optionalAuth körs på alla anrop och skapar en Supabase-klient kopplad till
+ * användarens cookies samt sätter c.get("user") om användaren är inloggad.
+ */
 app.use('*', optionalAuth)
 
 app.get('/', (c) => {
   return c.json({
     name: "Stay Finder"
-
   })
 })
 
-app.route("/properties",properties)
-app.route("/bookings",bookings)
-app.route("/auth",auth)
+// Kopplar in våra tre huvudroutes
+app.route("/properties", properties)
+app.route("/bookings", bookings)
+app.route("/auth", auth)
 
 serve({
   fetch: app.fetch,
