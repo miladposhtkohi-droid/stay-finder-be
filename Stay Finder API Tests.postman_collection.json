@@ -1,0 +1,1348 @@
+{
+  "info": {
+    "_postman_id": "a8f5e2c1-4b9d-4e7a-9c3f-1d2e3f4a5b6c",
+    "name": "Stay Finder API Tests",
+    "description": "Komplett Postman-kollektion för StayFinder Backend (Hono + TypeScript + Supabase).\n\nKollektionen testar samtliga G-krav för API:t (G1, G2, G4, G5, G6, G7, G8, G9, G10, G12, G14, G15):\n- Autentisering via HttpOnly-cookies (Register, Login, Me, Logout)\n- Boenden (Lista, filtrera, sortera stigande/fallande, hämta via ID, skapa, uppdatera, ta bort)\n- Bokningar (Skapa, lista för boende, uppdatera, ta bort)\n- Felhantering och statuskoder: 200 OK, 201 Created, 400 Bad Request, 401 Unauthorized, 404 Not Found.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "testEmail",
+      "value": "student.test@example.com",
+      "type": "string"
+    },
+    {
+      "key": "testPassword",
+      "value": "password123",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "propertyId",
+      "value": "15acb9d4-5302-4c01-9f71-95df850808f7",
+      "type": "string"
+    },
+    {
+      "key": "createdPropertyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "missingUuid",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "description": "Testar registrering, inloggning och sessionskontroll (Krav G1, G2 & G14). Vid lyckad inloggning sätter API:t en HttpOnly-cookie som Postman sparar automatiskt.",
+      "item": [
+        {
+          "name": "1.1 [400] Register - Invalid Email and Short Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response contains validation errors array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('errors');",
+                  "    pm.expect(jsonData.errors).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Testar att POST /auth/register nekar ogiltig e-post och lösenord kortare än 6 tecken med statuskod 400 Bad Request (Krav G1 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 [201] Register - Create New Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 Created (or 400 if user already exists)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([201, 400]);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "    pm.test('Response returns created user with id and email', function () {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('user');",
+                  "        pm.expect(jsonData.user).to.have.property('id');",
+                  "        pm.expect(jsonData.user).to.have.property('email');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Testar att skapa ett nytt konto via POST /auth/register. Returnerar 201 Created när en ny användare skapas (Krav G1 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 [400] Login - Wrong Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response contains Invalid credentials message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.eql('Invalid credentials');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"wrong_password_123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Testar att POST /auth/login med fel lösenord nekas med statuskod 400 Bad Request (Krav G1 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.4 [200] Login - Valid Credentials (Sets Cookie)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response contains logged-in user object', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "    pm.expect(jsonData.user).to.have.property('id');",
+                  "    pm.expect(jsonData.user.email).to.eql(pm.collectionVariables.get('testEmail'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Loggar in med giltiga uppgifter via POST /auth/login. Svarar med 200 OK och sätter HttpOnly-sessionscookies (Krav G1, G2 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.5 [200] Get Current User (/auth/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response returns current logged-in user', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('user');",
+                  "    pm.expect(jsonData.user).to.have.property('id');",
+                  "    pm.expect(jsonData.user).to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Kontrollerar vem som är inloggad via GET /auth/me med hjälp av sessionscookien (Krav G2 & G14)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Properties",
+      "description": "Testar att lista, filtrera, sortera, hämta enskilt boende samt skapa och uppdatera boenden (Krav G4, G5, G6, G7, G8 & G14).",
+      "item": [
+        {
+          "name": "2.1 [200] Get All Properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array of properties', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    if (jsonData.length > 0) {",
+                  "        pm.expect(jsonData[0]).to.have.property('property_id');",
+                  "        pm.expect(jsonData[0]).to.have.property('title');",
+                  "        pm.expect(jsonData[0]).to.have.property('price_per_night');",
+                  "        pm.collectionVariables.set('propertyId', jsonData[0].property_id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"]
+            },
+            "description": "Hämtar alla boenden via GET /properties. Sparar det första boendets ID i variabeln {{propertyId}} för efterföljande tester (Krav G4 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 [200] Filter Properties by Location, Max Price and Guests",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Filtered properties match criteria', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    jsonData.forEach(function (prop) {",
+                  "        pm.expect(prop.price_per_night).to.be.at.most(2500);",
+                  "        pm.expect(prop.max_guests).to.be.at.least(2);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties?location=Stockholm&maxprice=2500&maxguests=2",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"],
+              "query": [
+                {
+                  "key": "location",
+                  "value": "Stockholm"
+                },
+                {
+                  "key": "maxprice",
+                  "value": "2500"
+                },
+                {
+                  "key": "maxguests",
+                  "value": "2"
+                }
+              ]
+            },
+            "description": "Testar filtrering av boendelistan på plats (location), maxpris (maxprice) och antal gäster (maxguests) (Krav G5)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 [200] Sort Properties by Price Ascending (sort=asc)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Properties are sorted by price ascending', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    for (let i = 1; i < jsonData.length; i++) {",
+                  "        pm.expect(Number(jsonData[i].price_per_night)).to.be.at.least(Number(jsonData[i - 1].price_per_night));",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties?sort=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Testar att GET /properties?sort=asc sorterar boenden stigande på pris i backend (Krav G8)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 [200] Sort Properties by Price Descending (sort=desc)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Properties are sorted by price descending', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    for (let i = 1; i < jsonData.length; i++) {",
+                  "        pm.expect(Number(jsonData[i].price_per_night)).to.be.at.most(Number(jsonData[i - 1].price_per_night));",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties?sort=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "Testar att GET /properties?sort=desc sorterar boenden fallande på pris i backend (Krav G8)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 [200] Get Properties by Valid Kind (apartment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('All returned properties have kind = apartment', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    jsonData.forEach(function (prop) {",
+                  "        pm.expect(prop.kind).to.eql('apartment');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/kind/apartment",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "kind", "apartment"]
+            },
+            "description": "Testar att hämta boenden filtrerade på boendetyp 'apartment' via GET /properties/kind/apartment."
+          },
+          "response": []
+        },
+        {
+          "name": "2.6 [400] Get Properties by Invalid Kind (castle)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response contains validation errors', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('errors');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/kind/castle",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "kind", "castle"]
+            },
+            "description": "Testar att en ogiltig boendetyp ('castle') nekas av propertyParamValidator med 400 Bad Request (Krav G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.7 [200] Get Single Property by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response contains property details', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('property_id');",
+                  "    pm.expect(jsonData).to.have.property('title');",
+                  "    pm.expect(jsonData).to.have.property('location');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}"]
+            },
+            "description": "Hämtar ett enskilt boende via GET /properties/:id för detaljsidan (Krav G4 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.8 [404] Get Non-Existent Property by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Response contains Property not found message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.eql('Property not found');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{missingUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{missingUuid}}"]
+            },
+            "description": "Testar att GET /properties/:id för ett boende som inte finns svarar med 404 Not Found (Krav G13 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.9 [400] Create Property - Invalid Input",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response contains validation errors array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('errors');",
+                  "    pm.expect(jsonData.errors).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"A\",\n  \"description\": \"No\",\n  \"location\": \"S\",\n  \"price_per_night\": 50,\n  \"max_guests\": 0,\n  \"kind\": \"villa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"]
+            },
+            "description": "Testar att POST /properties med för kort titel, pris under 100 kr och 0 gäster nekas av propertyValidator med 400 Bad Request (Krav G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.10 [201] Create Property - Valid Input (Authenticated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response returns created property with property_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('property_id');",
+                  "    pm.expect(jsonData.title).to.eql('Mysig Skärgårdsvilla');",
+                  "    pm.collectionVariables.set('createdPropertyId', jsonData.property_id);",
+                  "    pm.collectionVariables.set('propertyId', jsonData.property_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mysig Skärgårdsvilla\",\n  \"description\": \"Fin villa nära vattnet med bastu och stor altan.\",\n  \"location\": \"Stockholm, Sweden\",\n  \"price_per_night\": 1800,\n  \"max_guests\": 6,\n  \"kind\": \"villa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"]
+            },
+            "description": "Skapar ett nytt boende som inloggad användare via POST /properties. Sparar det nya property_id i {{createdPropertyId}} och {{propertyId}} (Krav G6, G7 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.11 [200] Update Property (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Property price_per_night is updated to 1950', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(Number(jsonData.price_per_night)).to.eql(1950);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_per_night\": 1950\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{createdPropertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{createdPropertyId}}"]
+            },
+            "description": "Uppdaterar priset på det skapade boendet via PATCH /properties/:id som inloggad användare (Krav G6 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.12 [404] Update Non-Existent Property (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Response contains error message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_per_night\": 1950\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{missingUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{missingUuid}}"]
+            },
+            "description": "Testar att PATCH /properties/:id mot ett boende som inte finns returnerar 404 Not Found (Krav G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.13 [404] Delete Non-Existent Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{missingUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{missingUuid}}"]
+            },
+            "description": "Testar att DELETE /properties/:id mot ett boende som inte finns returnerar 404 Not Found (Krav G14)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Bookings",
+      "description": "Testar att skapa bokning, validera ogiltiga bokningsuppgifter, lista bokningar för ett boende, uppdatera bokning och ta bort bokning (Krav G9, G10, G12 & G14).",
+      "item": [
+        {
+          "name": "3.1 [400] Create Booking - Invalid Email and Zero Guests",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response contains validation errors array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('errors');",
+                  "    pm.expect(jsonData.errors).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_name\": \"Milad\",\n  \"guest_email\": \"invalid-email\",\n  \"check_in\": \"2026-12-10\",\n  \"check_out\": \"2026-12-15\",\n  \"guests\": 0,\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}"]
+            },
+            "description": "Testar att en bokning med ogiltig e-post och 0 gäster nekas av bookingValidator med statuskod 400 Bad Request (Krav G10 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 [400] Create Booking - Check-in After Check-out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response contains date order validation error', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('errors');",
+                  "    pm.expect(jsonData.errors).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_name\": \"Milad\",\n  \"guest_email\": \"milad@example.com\",\n  \"check_in\": \"2026-12-20\",\n  \"check_out\": \"2026-12-15\",\n  \"guests\": 2,\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}"]
+            },
+            "description": "Testar att en bokning där incheckningsdatum är efter utcheckningsdatum nekas med statuskod 400 Bad Request (Krav G10 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 [400] Create Booking - Invalid Property UUID Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response contains Invalid property ID message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.eql('Invalid property ID');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_name\": \"Milad\",\n  \"guest_email\": \"milad@example.com\",\n  \"check_in\": \"2026-12-10\",\n  \"check_out\": \"2026-12-15\",\n  \"guests\": 2,\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/not-a-valid-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "not-a-valid-uuid"]
+            },
+            "description": "Testar att POST /bookings/properties/:propertyId med ett ogiltigt UUID-format returnerar 400 Bad Request utan att läcka råa databasfel (Krav G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.4 [404] Create Booking - Non-Existent Property UUID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Response contains Property not found message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.eql('Property not found');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_name\": \"Milad\",\n  \"guest_email\": \"milad@example.com\",\n  \"check_in\": \"2026-12-10\",\n  \"check_out\": \"2026-12-15\",\n  \"guests\": 2,\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{missingUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{missingUuid}}"]
+            },
+            "description": "Testar att bokning på ett boende-UUID som inte finns i tabellen properties returnerar 404 Not Found (Krav G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.5 [201] Create Booking - Valid Input",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response contains created booking with booking_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('booking_id');",
+                  "    pm.expect(jsonData.guest_name).to.eql('Anna Andersson');",
+                  "    pm.collectionVariables.set('bookingId', jsonData.booking_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_name\": \"Anna Andersson\",\n  \"guest_email\": \"anna@example.com\",\n  \"check_in\": \"2026-12-10\",\n  \"check_out\": \"2026-12-15\",\n  \"guests\": 2,\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}"]
+            },
+            "description": "Skapar en giltig bokning på boendet som inloggad användare. Sparar booking_id i {{bookingId}} för efterföljande tester (Krav G9 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.6 [200] Get Bookings for Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array of bookings', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}"]
+            },
+            "description": "Hämtar alla bokningar för ett boende som inloggad användare via GET /bookings/properties/:propertyId (Krav G12 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.7 [200] Update Booking (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Booking status and guests are updated', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.guests).to.eql(3);",
+                  "    pm.expect(jsonData.status).to.eql('confirmed');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guests\": 3,\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}", "{{bookingId}}"]
+            },
+            "description": "Uppdaterar antal gäster och status på bokningen via PATCH /bookings/properties/:propertyId/:bookingId (Krav G12 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.8 [404] Update Non-Existent Booking (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guests\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}/{{missingUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}", "{{missingUuid}}"]
+            },
+            "description": "Testar att PATCH mot en bokning som inte finns returnerar 404 Not Found (Krav G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.9 [404] Delete Non-Existent Booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}/{{missingUuid}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}", "{{missingUuid}}"]
+            },
+            "description": "Testar att DELETE mot en bokning som inte finns returnerar 404 Not Found (Krav G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.10 [200] Delete Booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response confirms booking deletion', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.eql('Booking deleted');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}", "{{bookingId}}"]
+            },
+            "description": "Tar bort den skapade bokningen via DELETE /bookings/properties/:propertyId/:bookingId (Krav G12 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.11 [200] Delete Created Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response confirms property deletion', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.eql('Property deleted');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{createdPropertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{createdPropertyId}}"]
+            },
+            "description": "Tar bort det testboende som skapades i steg 2.10 via DELETE /properties/:id som inloggad användare (Krav G6 & G14)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Logout & Unauthorized (401 Tests)",
+      "description": "Loggar ut användaren och verifierar att alla skyddade endpoints nekar utloggade anrop med 401 Unauthorized (Krav G1, G6, G9, G12 & G14).",
+      "item": [
+        {
+          "name": "4.1 [200] Logout User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response confirms logout', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.eql('Logged out successfully');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Loggar ut användaren via POST /auth/logout och rensar sessionscookien (Krav G1)."
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 [401] Get Current User (/auth/me) When Logged Out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Verifierar att GET /auth/me svarar med 401 Unauthorized när man är utloggad (Krav G2 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 [401] Create Property When Logged Out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Otillåtet boende\",\n  \"description\": \"Detta anrop ska nekas eftersom vi är utloggade.\",\n  \"location\": \"Göteborg\",\n  \"price_per_night\": 1200,\n  \"max_guests\": 2,\n  \"kind\": \"apartment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/properties",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties"]
+            },
+            "description": "Verifierar att en utloggad besökare inte kan skapa boenden och får 401 Unauthorized (Krav G6 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 [401] Delete Property When Logged Out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["properties", "{{propertyId}}"]
+            },
+            "description": "Verifierar att en utloggad besökare inte kan ta bort boenden och får 401 Unauthorized (Krav G6 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 [401] Create Booking When Logged Out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guest_name\": \"Milad\",\n  \"guest_email\": \"milad@example.com\",\n  \"check_in\": \"2026-12-10\",\n  \"check_out\": \"2026-12-15\",\n  \"guests\": 2,\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}"]
+            },
+            "description": "Verifierar att en utloggad besökare inte kan skapa en bokning och får 401 Unauthorized (Krav G9 & G14)."
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 [401] Get Bookings for Property When Logged Out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/properties/{{propertyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "properties", "{{propertyId}}"]
+            },
+            "description": "Verifierar att en utloggad besökare inte kan se bokningar för ett boende och får 401 Unauthorized (Krav G12 & G14)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
