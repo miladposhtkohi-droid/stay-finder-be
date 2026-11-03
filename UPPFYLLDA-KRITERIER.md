@@ -29,12 +29,12 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implemen
 
 ## Detaljerad genomgång per kriterium
 
-### Konto och inloggning
+### Konto och inloggning                                                                                            
 
 #### G1. En besökare kan skapa ett konto, logga in och logga ut.
 - **Status:** **PASS**
 - **Förklaring:**
-  Besökare kan registrera ett nytt konto och logga in på `/login` genom att växla mellan lägena *"Logga in"* och *"Skapa konto"*. Backend validerar e-post och lösenord med Zod (`authValidator`) och anropar Supabase Auth (`signUp`, `signInWithPassword`, `signOut`). Utloggning sker via knappen *"Logga ut"* i navigeringen som anropar `POST /auth/logout` och nollställer användar-state.
+  Besökare kan registrera ett nytt konto och logga in på `/login` genom att växla mellan lägena "Logga in" och "Skapa konto". Backend validerar e-post och lösenord med Zod (`authValidator`) och anropar Supabase Auth (`signUp`, `signInWithPassword`, `signOut`). Utloggning sker via knappen "Logga ut" i navigeringen som anropar `POST /auth/logout` och nollställer användar-state.
 - **Bevis i koden:**
   - Backend: `stay-finder-be/src/routes/auth.ts` (`POST /auth/register`, `POST /auth/login`, `POST /auth/logout`), `stay-finder-be/src/database/auth.ts`, `stay-finder-be/src/validators/authValidator.ts`
   - Frontend: `stay-finder-fe/src/app/login/page.tsx`, `stay-finder-fe/src/context/AuthContext.tsx`, `stay-finder-fe/src/components/Navbar.tsx`
@@ -119,7 +119,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implemen
 #### G9. En inloggad användare kan boka ett boende från detaljsidan. En utloggad besökare uppmanas att logga in.
 - **Status:** **PASS**
 - **Förklaring:**
-  På detaljsidan (`/properties/[id]`) kontrolleras om `user` är inloggad. Är besökaren utloggad visas en tydlig uppmaning (*"Du måste vara inloggad för att boka detta boende"*) och en knapp som leder till `/login`. Är användaren inloggad visas bokningsformuläret som skickar `POST /bookings/properties/:propertyId`.
+  På detaljsidan (`/properties/[id]`) kontrolleras om `user` är inloggad. Är besökaren utloggad visas en tydlig uppmaning ("Du måste vara inloggad för att boka detta boende") och en knapp som leder till `/login`. Är användaren inloggad visas bokningsformuläret som skickar `POST /bookings/properties/:propertyId`.
 - **Bevis i koden:**
   - Frontend: `stay-finder-fe/src/app/properties/[id]/page.tsx` (rad 696–841)
   - Backend: `stay-finder-be/src/routes/bookings.ts` (`POST /bookings/properties/:propertyId`)
@@ -139,7 +139,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implemen
 #### G11. Bokningsformuläret visar antal nätter och totalpris innan användaren bokar.
 - **Status:** **PASS**
 - **Förklaring:**
-  Funktionen `calculateNights(checkIn, checkOut)` på detaljsidan räknar ut antalet nätter utifrån valda in- och utcheckningsdatum och multiplicerar med `property.price_per_night`. Både `Antal nätter` och `Totalpris` visas direkt i bokningsformuläret innan användaren klickar på *"Boka nu"*.
+  Funktionen `calculateNights(checkIn, checkOut)` på detaljsidan räknar ut antalet nätter utifrån valda in- och utcheckningsdatum och multiplicerar med `property.price_per_night`. Både `Antal nätter` och `Totalpris` visas direkt i bokningsformuläret innan användaren klickar på "Boka nu".
 - **Bevis i koden:**
   - Frontend: `stay-finder-fe/src/app/properties/[id]/page.tsx` (`calculateNights` på rad 43–51, uträkning på rad 340–341, visning i formuläret på rad 816–831)
 
@@ -148,7 +148,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implemen
 #### G12. En inloggad användare kan se, ändra och ta bort bokningar för ett boende.
 - **Status:** **PASS**
 - **Förklaring:**
-  På detaljsidan hämtas alla bokningar för det aktuella boendet via `GET /bookings/properties/:propertyId` när användaren är inloggad. Varje bokning har en *"Ändra"*-knapp (som öppnar ett redigeringsformulär för incheckning, utcheckning, antal gäster och status och sparar via `PATCH /bookings/properties/:propertyId/:bookingId`) samt en *"Ta bort"*-knapp (som anropar `DELETE /bookings/properties/:propertyId/:bookingId`).
+  På detaljsidan hämtas alla bokningar för det aktuella boendet via `GET /bookings/properties/:propertyId` när användaren är inloggad. Varje bokning har en "Ändra"-knapp (som öppnar ett redigeringsformulär för incheckning, utcheckning, antal gäster och status och sparar via `PATCH /bookings/properties/:propertyId/:bookingId`) samt en "Ta bort"-knapp (som anropar `DELETE /bookings/properties/:propertyId/:bookingId`).
 - **Bevis i koden:**
   - Backend: `stay-finder-be/src/routes/bookings.ts`, `stay-finder-be/src/database/bookings.ts`
   - Frontend: `stay-finder-fe/src/app/properties/[id]/page.tsx` (rad 507–682)
@@ -160,9 +160,9 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implemen
 #### G13. Appen visar en laddningsvy och en felvy när data hämtas, och en egen sida när ett boende inte finns.
 - **Status:** **PASS**
 - **Förklaring:**
-  - **Laddningsvy:** Både startsidan och detaljsidan visar en laddningsspinner och text (*"Laddar boenden..."* / *"Laddar boendets detaljer..."*) medan `loading` är `true`.
-  - **Felvy:** Om hämtningen av boenden eller bokningar misslyckas (t.ex. statuskod `500` eller nätverksfel) visas en röd felvy med felmeddelande och en *"Försök igen"*-knapp.
-  - **Egen 404-sida:** Om `GET /properties/:id` svarar med `404 Not Found` sätter frontenden `notFound = true` och visar en egen vy (*"Boendet hittades inte (404)"*) med en knapp tillbaka till startsidan.
+  - **Laddningsvy:** Både startsidan och detaljsidan visar en laddningsspinner och text ("Laddar boenden..." / "Laddar boendets detaljer...") medan `loading` är `true`.
+  - **Felvy:** Om hämtningen av boenden eller bokningar misslyckas (t.ex. statuskod `500` eller nätverksfel) visas en röd felvy med felmeddelande och en "Försök igen"-knapp.
+  - **Egen 404-sida:** Om `GET /properties/:id` svarar med `404 Not Found` sätter frontenden `notFound = true` och visar en egen vy ("Boendet hittades inte (404)") med en knapp tillbaka till startsidan.
 - **Bevis i koden:**
   - Frontend: `stay-finder-fe/src/app/page.tsx` (rad 224–246), `stay-finder-fe/src/app/properties/[id]/page.tsx` (rad 282–337)
   - Backend: `stay-finder-be/src/routes/properties.ts` (rad 50–53 och 83–93), `stay-finder-be/src/routes/bookings.ts` (rad 34–40)
@@ -172,11 +172,11 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implemen
 #### G14. API:t svarar med rätt statuskod när ett anrop lyckas, när något skapas, när data är ogiltig, när användaren inte är inloggad och när något saknas.
 - **Status:** **PASS**
 - **Förklaring:**
-  - **`200 OK`:** Vid lyckade `GET`-, `PATCH`- och `DELETE`-anrop samt vid `POST /auth/login` och `POST /auth/logout`.
-  - **`201 Created`:** När en resurs skapas via `POST /auth/register`, `POST /properties` och `POST /bookings/properties/:propertyId`.
-  - **`400 Bad Request`:** När Zod-valideringen nekar ogiltig data (`authValidator`, `propertyValidator`, `bookingValidator`), vid felaktiga inloggningsuppgifter eller vid ogiltigt UUID-format (`22P02`).
-  - **`401 Unauthorized`:** När en oautentiserad besökare anropar en route skyddad av `requireAuth`.
-  - **`404 Not Found`:** När ett efterfrågat boende eller en bokning saknas vid `GET`, `PATCH`, `DELETE` eller när man försöker boka ett boende-UUID som inte finns (`23503`).
+  - `200 OK`: Vid lyckade `GET`-, `PATCH`- och `DELETE`-anrop samt vid `POST /auth/login` och `POST /auth/logout`.
+  - `201 Created`: När en resurs skapas via `POST /auth/register`, `POST /properties` och `POST /bookings/properties/:propertyId`.
+  - `400 Bad Request`: När Zod-valideringen nekar ogiltig data (`authValidator`, `propertyValidator`, `bookingValidator`), vid felaktiga inloggningsuppgifter eller vid ogiltigt UUID-format (`22P02`).
+  - `401 Unauthorized`: När en oautentiserad besökare anropar en route skyddad av `requireAuth`.
+  - `404 Not Found`: När ett efterfrågat boende eller en bokning saknas vid `GET`, `PATCH`, `DELETE` eller när man försöker boka ett boende-UUID som inte finns (`23503`).
 - **Bevis i koden:**
   - Backend: `stay-finder-be/src/middleware/auth.ts`, `stay-finder-be/src/routes/auth.ts`, `stay-finder-be/src/routes/properties.ts`, `stay-finder-be/src/routes/bookings.ts`
 
@@ -188,7 +188,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implemen
   Row Level Security (RLS) är aktiverat på både `public.properties` och `public.bookings` i `stay-finder-be/supabase/rls_policies_g.sql`:
   - `public.properties`: Alla (`public`) får läsa (`SELECT`), men endast inloggade (`authenticated` med `auth.uid() IS NOT NULL`) får göra `INSERT`, `UPDATE` och `DELETE`.
   - `public.bookings`: Endast inloggade (`authenticated` med `auth.uid() IS NOT NULL`) får göra `SELECT`, `INSERT`, `UPDATE` och `DELETE`.
-  Backend ansluter med Supabase publishable/anon-nyckeln och vidarebefordrar användarens session via cookies, vilket innebär att databasens RLS-regler alltid är aktiva. *(Notera: Vid anrop via Postman mot API:t stoppas utloggade anrop redan i API:ts `requireAuth`-middleware med `401`. Att databasens RLS i sig nekar oautentiserade anrop med PostgreSQL-felkod `42501` har verifierats genom direktanrop med Supabase-klienten mot tabellerna utan att gå via Hono-routerna).*
+  Backend ansluter med Supabase publishable/anon-nyckeln och vidarebefordrar användarens session via cookies, vilket innebär att databasens RLS-regler alltid är aktiva. Notera att vid anrop via Postman mot API:t stoppas utloggade anrop redan i API:ts `requireAuth`-middleware med `401`. Att databasens RLS i sig nekar oautentiserade anrop med PostgreSQL-felkod `42501` har verifierats genom direktanrop med Supabase-klienten mot tabellerna utan att gå via Hono-routerna.
 - **Bevis i koden:**
   - Databas: `stay-finder-be/supabase/rls_policies_g.sql`
   - Backend: `stay-finder-be/src/middleware/auth.ts` (`createSupabaseForRequest`)
