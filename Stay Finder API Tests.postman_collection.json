@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a8f5e2c1-4b9d-4e7a-9c3f-1d2e3f4a5b6c",
     "name": "Stay Finder API Tests",
-    "description": "Komplett Postman-kollektion för StayFinder Backend (Hono + TypeScript + Supabase).\n\nKollektionen testar samtliga G-krav för API:t (G1, G2, G4, G5, G6, G7, G8, G9, G10, G12, G14, G15):\n- Autentisering via HttpOnly-cookies (Register, Login, Me, Logout)\n- Boenden (Lista, filtrera, sortera stigande/fallande, hämta via ID, skapa, uppdatera, ta bort)\n- Bokningar (Skapa, lista för boende, uppdatera, ta bort)\n- Felhantering och statuskoder: 200 OK, 201 Created, 400 Bad Request, 401 Unauthorized, 404 Not Found.",
+    "description": "Komplett Postman-kollektion för StayFinder Backend (Hono + TypeScript + Supabase).\n\nKollektionen testar API-endpoints och statuskoder för G-nivå (G1, G2, G4, G5, G6, G7, G8, G9, G10, G12, G14):\n- Autentisering via HttpOnly-cookies (Register, Login, Me, Logout)\n- Boenden (Lista, filtrera, sortera stigande/fallande, hämta via ID, skapa, uppdatera, ta bort)\n- Bokningar (Skapa, lista för boende, uppdatera, ta bort)\n- Felhantering och statuskoder: 200 OK, 201 Created, 400 Bad Request, 401 Unauthorized, 404 Not Found.\n\nNotera: Utloggade anrop (401) stoppas av API:ts requireAuth-middleware. Databasens egna RLS-policies (Krav G15) definieras i supabase/rls_policies_g.sql.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,11 +19,6 @@
     {
       "key": "testPassword",
       "value": "password123",
-      "type": "string"
-    },
-    {
-      "key": "accessToken",
-      "value": "",
       "type": "string"
     },
     {
@@ -94,7 +89,7 @@
           "response": []
         },
         {
-          "name": "1.2 [201] Register - Create New Account",
+          "name": "1.2 [201/400] Register - Create Account (201 New or 400 Already Exists)",
           "event": [
             {
               "listen": "test",
@@ -133,7 +128,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "register"]
             },
-            "description": "Testar att skapa ett nytt konto via POST /auth/register. Returnerar 201 Created när en ny användare skapas (Krav G1 & G14)."
+            "description": "Testar att skapa ett nytt konto via POST /auth/register. Returnerar 201 Created första gången kontot skapas, eller 400 Bad Request om testanvändaren redan finns i databasen vid omkörning (Krav G1 & G14)."
           },
           "response": []
         },
@@ -610,7 +605,6 @@
                   "    pm.expect(jsonData).to.have.property('property_id');",
                   "    pm.expect(jsonData.title).to.eql('Mysig Skärgårdsvilla');",
                   "    pm.collectionVariables.set('createdPropertyId', jsonData.property_id);",
-                  "    pm.collectionVariables.set('propertyId', jsonData.property_id);",
                   "});"
                 ]
               }
@@ -633,7 +627,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["properties"]
             },
-            "description": "Skapar ett nytt boende som inloggad användare via POST /properties. Sparar det nya property_id i {{createdPropertyId}} och {{propertyId}} (Krav G6, G7 & G14)."
+            "description": "Skapar ett nytt boende som inloggad användare via POST /properties. Sparar det nya property_id i {{createdPropertyId}} (Krav G6, G7 & G14)."
           },
           "response": []
         },

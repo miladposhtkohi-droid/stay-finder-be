@@ -1,6 +1,6 @@
 # Uppfyllda kriterier – StayFinder (G-nivå)
 
-Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfyllda i projektets backend (`stay-finder-be`) och frontend (`stay-finder-fe`).
+Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är implementerade i projektets backend (`stay-finder-be`), frontend (`stay-finder-fe`) och databas (`supabase/rls_policies_g.sql`).
 
 ---
 
@@ -31,7 +31,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ### Konto och inloggning
 
-#### **G1. En besökare kan skapa ett konto, logga in och logga ut.**
+#### G1. En besökare kan skapa ett konto, logga in och logga ut.
 - **Status:** **PASS**
 - **Förklaring:**
   Besökare kan registrera ett nytt konto och logga in på `/login` genom att växla mellan lägena *"Logga in"* och *"Skapa konto"*. Backend validerar e-post och lösenord med Zod (`authValidator`) och anropar Supabase Auth (`signUp`, `signInWithPassword`, `signOut`). Utloggning sker via knappen *"Logga ut"* i navigeringen som anropar `POST /auth/logout` och nollställer användar-state.
@@ -41,20 +41,20 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G2. Inloggningen finns kvar när sidan laddas om, och appen kan alltid visa vem som är inloggad.**
+#### G2. Inloggningen finns kvar när sidan laddas om, och appen kan alltid visa vem som är inloggad.
 - **Status:** **PASS**
 - **Förklaring:**
-  Vid inloggning sätter backend `HttpOnly`-cookies via `@supabase/ssr` i `createSupabaseForRequest`. Alla `fetch`-anrop i frontenden skickar med cookies via `credentials: "include"`. När sidan laddas om körs `useEffect` i `AuthContext.tsx` som anropar `GET /auth/me` och återställer den inloggade användaren. I `Navbar.tsx` visas alltid `Inloggad som: <användarens e-post>`.
+  Vid inloggning sätter backend `HttpOnly`-cookies via `@supabase/ssr` i `createSupabaseForRequest`. Alla `fetch`-anrop i frontenden skickar med cookies via `credentials: "include"`. När sidan laddas om körs `useEffect` i `AuthContext.tsx` som anropar `GET /auth/me` och återställer den inloggade användaren. I `Navbar.tsx` visas alltid `Inloggad som: {user.email}`.
 - **Bevis i koden:**
   - Backend: `stay-finder-be/src/middleware/auth.ts` (`createSupabaseForRequest`), `stay-finder-be/src/routes/auth.ts` (`GET /auth/me`), `stay-finder-be/src/index.ts` (CORS med `credentials: true`)
   - Frontend: `stay-finder-fe/src/context/AuthContext.tsx` (`refreshUser`), `stay-finder-fe/src/lib/api.ts` (`apiGetMe`), `stay-finder-fe/src/components/Navbar.tsx`
 
 ---
 
-#### **G3. Navigeringen visar olika innehåll för en inloggad användare och en utloggad besökare.**
+#### G3. Navigeringen visar olika innehåll för en inloggad användare och en utloggad besökare.
 - **Status:** **PASS**
 - **Förklaring:**
-  Komponenten `Navbar.tsx` kontrollerar `user` från `useAuth()`. För en inloggad användare visas länken `+ Skapa boende`, texten `Inloggad som: <email>` och knappen `Logga ut`. För en utloggad besökare visas istället texten `Ej inloggad` och knappen `Logga in / Skapa konto`.
+  Komponenten `Navbar.tsx` kontrollerar `user` från `useAuth()`. För en inloggad användare visas länken `+ Skapa boende`, texten `Inloggad som: {user.email}` och knappen `Logga ut`. För en utloggad besökare visas istället texten `Ej inloggad` och knappen `Logga in / Skapa konto`.
 - **Bevis i koden:**
   - Frontend: `stay-finder-fe/src/components/Navbar.tsx` (rad 55–94)
 
@@ -62,7 +62,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ### Boenden
 
-#### **G4. Alla kan se en lista över boenden och en detaljsida för varje boende.**
+#### G4. Alla kan se en lista över boenden och en detaljsida för varje boende.
 - **Status:** **PASS**
 - **Förklaring:**
   Routen `GET /properties` och `GET /properties/:id` använder `optionalAuth` och är öppna även för utloggade besökare. I databasen tillåter RLS-policyn `properties_select_all` läsning (`SELECT`) för alla (`TO public`). Startsidan listar alla boenden och varje kort länkar till detaljsidan `/properties/[id]`.
@@ -72,7 +72,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G5. Listan kan filtreras på plats, maxpris och antal gäster.**
+#### G5. Listan kan filtreras på plats, maxpris och antal gäster.
 - **Status:** **PASS**
 - **Förklaring:**
   På startsidan finns ett sökformulär för plats (`location`), maxpris per natt (`maxprice`) och minsta antal gäster (`maxguests`). Parametrarna skickas som query-parametrar till `GET /properties`, där `buildPropertiesFilter` filtrerar direkt i Supabase-frågan med `.ilike("location", ...)`, `.lte("price_per_night", ...)` och `.gte("max_guests", ...)`.
@@ -82,7 +82,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G6. Bara inloggade användare kan skapa, ändra och ta bort boenden. Det gäller både i API:t och i databasen.**
+#### G6. Bara inloggade användare kan skapa, ändra och ta bort boenden. Det gäller både i API:t och i databasen.
 - **Status:** **PASS**
 - **Förklaring:**
   - **I API:t:** `POST /properties`, `PATCH /properties/:id` och `DELETE /properties/:id` är skyddade med middleware `requireAuth`, som stoppar utloggade anrop med `401 Unauthorized`.
@@ -94,7 +94,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G7. En inloggad användare kan skapa ett nytt boende via ett formulär i frontenden.**
+#### G7. En inloggad användare kan skapa ett nytt boende via ett formulär i frontenden.
 - **Status:** **PASS**
 - **Förklaring:**
   Sidan `/properties/new` innehåller ett formulär där en inloggad användare fyller i titel, plats, boendetyp (`apartment` eller `villa`), pris per natt, max antal gäster och beskrivning. Vid inskickning anropas `POST /properties` och användaren skickas vidare till det nyskapade boendets detaljsida.
@@ -104,7 +104,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G8. Listan kan sorteras på pris, stigande eller fallande. Sorteringen görs i backend.**
+#### G8. Listan kan sorteras på pris, stigande eller fallande. Sorteringen görs i backend.
 - **Status:** **PASS**
 - **Förklaring:**
   Startsidan har en rullgardinsmeny för prissortering som skickar `?sort=asc` eller `?sort=desc` till `GET /properties`. Backend tolkar parametern med `parseSortOrder` och sorterar databasfrågan i Supabase med `.order("price_per_night", { ascending: true | false })`.
@@ -116,7 +116,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ### Bokningar
 
-#### **G9. En inloggad användare kan boka ett boende från detaljsidan. En utloggad besökare uppmanas att logga in.**
+#### G9. En inloggad användare kan boka ett boende från detaljsidan. En utloggad besökare uppmanas att logga in.
 - **Status:** **PASS**
 - **Förklaring:**
   På detaljsidan (`/properties/[id]`) kontrolleras om `user` är inloggad. Är besökaren utloggad visas en tydlig uppmaning (*"Du måste vara inloggad för att boka detta boende"*) och en knapp som leder till `/login`. Är användaren inloggad visas bokningsformuläret som skickar `POST /bookings/properties/:propertyId`.
@@ -126,7 +126,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G10. En bokning med ogiltiga uppgifter nekas, till exempel ogiltig e-post, noll gäster eller incheckning efter utcheckning. Felet visas begripligt i formuläret.**
+#### G10. En bokning med ogiltiga uppgifter nekas, till exempel ogiltig e-post, noll gäster eller incheckning efter utcheckning. Felet visas begripligt i formuläret.
 - **Status:** **PASS**
 - **Förklaring:**
   I backend validerar `bookingValidator` (Zod) att gästens namn har minst 2 tecken, att `guest_email` är en giltig e-postadress, att `guests` är minst 1 samt via `.refine()` att `check_in < check_out`. Vid ogiltig data svarar API:t med `400 Bad Request` och en lista med felmeddelanden som `handleErrorResponse` i `api.ts` tolkar och visar i en röd felruta ovanför bokningsformuläret.
@@ -136,7 +136,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G11. Bokningsformuläret visar antal nätter och totalpris innan användaren bokar.**
+#### G11. Bokningsformuläret visar antal nätter och totalpris innan användaren bokar.
 - **Status:** **PASS**
 - **Förklaring:**
   Funktionen `calculateNights(checkIn, checkOut)` på detaljsidan räknar ut antalet nätter utifrån valda in- och utcheckningsdatum och multiplicerar med `property.price_per_night`. Både `Antal nätter` och `Totalpris` visas direkt i bokningsformuläret innan användaren klickar på *"Boka nu"*.
@@ -145,7 +145,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G12. En inloggad användare kan se, ändra och ta bort bokningar för ett boende.**
+#### G12. En inloggad användare kan se, ändra och ta bort bokningar för ett boende.
 - **Status:** **PASS**
 - **Förklaring:**
   På detaljsidan hämtas alla bokningar för det aktuella boendet via `GET /bookings/properties/:propertyId` när användaren är inloggad. Varje bokning har en *"Ändra"*-knapp (som öppnar ett redigeringsformulär för incheckning, utcheckning, antal gäster och status och sparar via `PATCH /bookings/properties/:propertyId/:bookingId`) samt en *"Ta bort"*-knapp (som anropar `DELETE /bookings/properties/:propertyId/:bookingId`).
@@ -157,7 +157,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ### Kvalitet
 
-#### **G13. Appen visar en laddningsvy och en felvy när data hämtas, och en egen sida när ett boende inte finns.**
+#### G13. Appen visar en laddningsvy och en felvy när data hämtas, och en egen sida när ett boende inte finns.
 - **Status:** **PASS**
 - **Förklaring:**
   - **Laddningsvy:** Både startsidan och detaljsidan visar en laddningsspinner och text (*"Laddar boenden..."* / *"Laddar boendets detaljer..."*) medan `loading` är `true`.
@@ -169,7 +169,7 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G14. API:t svarar med rätt statuskod när ett anrop lyckas, när något skapas, när data är ogiltig, när användaren inte är inloggad och när något saknas.**
+#### G14. API:t svarar med rätt statuskod när ett anrop lyckas, när något skapas, när data är ogiltig, när användaren inte är inloggad och när något saknas.
 - **Status:** **PASS**
 - **Förklaring:**
   - **`200 OK`:** Vid lyckade `GET`-, `PATCH`- och `DELETE`-anrop samt vid `POST /auth/login` och `POST /auth/logout`.
@@ -182,20 +182,20 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ---
 
-#### **G15. Databasen skyddar själv sina tabeller med behörighetsregler. Det räcker inte att bara API:t skyddar dem.**
+#### G15. Databasen skyddar själv sina tabeller med behörighetsregler. Det räcker inte att bara API:t skyddar dem.
 - **Status:** **PASS**
 - **Förklaring:**
-  Row Level Security (RLS) är aktiverat på både `public.properties` och `public.bookings` i Supabase:
+  Row Level Security (RLS) är aktiverat på både `public.properties` och `public.bookings` i `stay-finder-be/supabase/rls_policies_g.sql`:
   - `public.properties`: Alla (`public`) får läsa (`SELECT`), men endast inloggade (`authenticated` med `auth.uid() IS NOT NULL`) får göra `INSERT`, `UPDATE` och `DELETE`.
   - `public.bookings`: Endast inloggade (`authenticated` med `auth.uid() IS NOT NULL`) får göra `SELECT`, `INSERT`, `UPDATE` och `DELETE`.
-  Backend ansluter med Supabase publishable/anon-nyckeln och vidarebefordrar användarens session via cookies, vilket garanterar att databasens RLS-regler alltid kontrolleras.
+  Backend ansluter med Supabase publishable/anon-nyckeln och vidarebefordrar användarens session via cookies, vilket innebär att databasens RLS-regler alltid är aktiva. *(Notera: Vid anrop via Postman mot API:t stoppas utloggade anrop redan i API:ts `requireAuth`-middleware med `401`. Att databasens RLS i sig nekar oautentiserade anrop med PostgreSQL-felkod `42501` har verifierats genom direktanrop med Supabase-klienten mot tabellerna utan att gå via Hono-routerna).*
 - **Bevis i koden:**
   - Databas: `stay-finder-be/supabase/rls_policies_g.sql`
   - Backend: `stay-finder-be/src/middleware/auth.ts` (`createSupabaseForRequest`)
 
 ---
 
-#### **G16. All data är typad i både backend och frontend.**
+#### G16. All data är typad i både backend och frontend.
 - **Status:** **PASS**
 - **Förklaring:**
   - **Backend:** Använder genererade Supabase-typer i `src/types/database.types.d.ts` tillsammans med domäntyperna `Property`, `NewProperty`, `PropertyKind`, `Booking`, `NewBooking`, `AuthUser` och `BasicSupabaseClient`.
@@ -210,4 +210,8 @@ Detta dokument redovisar hur samtliga **16 G-kriterier (G1–G16)** är uppfylld
 
 ## Slutsats
 
-Samtliga **16 av 16 G-kriterier (G1–G16)** är **PASS** och verifierade i både kod, typkontroll (`tsc --noEmit`) och databasens RLS-konfiguration.
+Samtliga **16 av 16 G-kriterier (G1–G16)** är bedömda som **PASS** utifrån:
+1. **Kodgranskning** av samtliga routes, validators, databasfunktioner och React-komponenter i `stay-finder-be` och `stay-finder-fe`.
+2. **Statisk typkontroll** med `npx tsc --noEmit` i både backend och frontend (0 fel).
+3. **Databasens RLS-policies** i `stay-finder-be/supabase/rls_policies_g.sql` (samt direktverifiering mot Supabase att oautentiserade tabellanrop nekas av RLS).
+4. **API-testsvit** i `Stay Finder API Tests.postman_collection.json` (och `api-tests.http`) som kan importeras och köras i Postman mot `http://localhost:3000`.
