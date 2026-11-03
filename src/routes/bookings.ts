@@ -14,8 +14,9 @@ import {
 import { requireAuth } from "../middleware/auth.js";
 import type { Booking } from "../types/booking.js";
 
-// PostgreSQL felkod för Foreign Key Violation (om property_id inte finns i tabellen properties)
+// PostgreSQL felkoder för saknat boende (Foreign Key) och ogiltigt UUID-format
 const FOREIGN_KEY_VIOLATION = "23503";
+const INVALID_UUID = "22P02";
 
 const bookings = new Hono({ strict: false });
 
@@ -32,7 +33,10 @@ bookings.get("/properties/:propertyId", requireAuth, async (c) => {
     return c.json(bookings, 200);
   } catch (e) {
     console.warn("Error in fetching bookings from SB database", e);
-    return c.json([], 200);
+    if ((e as PostgrestError).code === INVALID_UUID) {
+      return c.json({ message: "Invalid property ID" }, 400);
+    }
+    return c.json({ message: "Could not fetch bookings" }, 500);
   }
 });
 
@@ -61,10 +65,14 @@ bookings.post(
       return c.json(booking, 201);
     } catch (e) {
       console.warn("Error in inserting booking into SB DB", e);
-      if ((e as PostgrestError).code === FOREIGN_KEY_VIOLATION) {
+      const errorCode = (e as PostgrestError).code;
+      if (errorCode === FOREIGN_KEY_VIOLATION) {
         return c.json({ message: "Property not found" }, 404);
       }
-      return c.json({ message: "Could not create booking", error: e }, 500);
+      if (errorCode === INVALID_UUID) {
+        return c.json({ message: "Invalid property ID" }, 400);
+      }
+      return c.json({ message: "Could not create booking" }, 500);
     }
   },
 );

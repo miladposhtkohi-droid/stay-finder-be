@@ -20,11 +20,11 @@ auth.post("/register", authValidator, async (c) => {
     const sb = c.get("supabase");
     const user = await register(sb, email, password);
     return c.json({ user }, 201);
-  } catch (e: any) {
+  } catch (e) {
     console.warn("Error in registering", e);
     return c.json(
       {
-        message: e?.message || "Could not register user",
+        message: e instanceof Error ? e.message : "Could not register user",
       },
       400,
     );
@@ -43,7 +43,7 @@ auth.post("/login", authValidator, async (c) => {
     const sb = c.get("supabase");
     const user = await login(sb, email, password);
     return c.json({ user }, 200);
-  } catch (e: any) {
+  } catch (e) {
     console.warn("Error in login", e);
     return c.json(
       {
@@ -64,7 +64,7 @@ auth.post("/logout", async (c) => {
   try {
     await logout(sb);
     return c.json({ message: "Logged out successfully" }, 200);
-  } catch (e: any) {
+  } catch (e) {
     console.warn("Error in logout", e);
     return c.json(
       {
@@ -85,7 +85,7 @@ auth.get("/me", requireAuth, async (c) => {
   try {
     const user = await getUser(sb);
     return c.json({ user }, 200);
-  } catch (e: any) {
+  } catch (e) {
     console.warn("Error in getting user", e);
     return c.json(
       {

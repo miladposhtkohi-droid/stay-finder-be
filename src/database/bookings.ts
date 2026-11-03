@@ -1,24 +1,12 @@
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 
-import type { Booking, NewBooking, BookingValidKey } from "../types/booking.js";
+import type { Booking, NewBooking } from "../types/booking.js";
 import type { BasicSupabaseClient } from "../types/supabase.js";
 
 const TABLE_NAME = "bookings";
 
-const SELECT_QUERY_LIST: BookingValidKey[] = [
-  "booking_id",
-  "property_id",
-  "user_id",
-  "guest_name",
-  "guest_email",
-  "check_in",
-  "check_out",
-  "guests",
-  "status",
-  "created_at",
-];
-
-const SELECT_QUERY = SELECT_QUERY_LIST.join(", ");
+const SELECT_QUERY =
+  "booking_id, property_id, user_id, guest_name, guest_email, check_in, check_out, guests, status, created_at";
 const QUERY_ID = "booking_id";
 const QUERY_PROPERTY_ID = "property_id";
 
@@ -37,7 +25,7 @@ export async function getBookingsByPropertyId(
     .order("check_in");
 
   if (!error) {
-    return data as any as Booking[];
+    return data;
   }
   throw error;
 }

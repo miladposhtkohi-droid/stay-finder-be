@@ -1,6 +1,4 @@
-
-
-type AuthUser = {
+export type AuthUser = {
     id: string;
     email: string;
 };

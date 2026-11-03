@@ -1,4 +1,5 @@
 import type { BasicSupabaseClient } from "../types/supabase.js";
+import type { AuthUser } from "../types/auth.js";
 
 /**
  * Krav G1: Skapa ett nytt konto i Supabase Auth.
